@@ -24,8 +24,8 @@ class Riemann::Dash::Config
     })
   end
 
-  def ws_config_file
-    store[:ws_config]
+  def ws_config_file(param)
+    store[:ws_config] + "." + param[:username]
   end
 
   # backwards compatible forwarder to store-ivar
@@ -119,9 +119,9 @@ class Riemann::Dash::Config
   require 'fileutils'
 
 
-  def read_ws_config
-    if File.exists? ws_config_file
-      File.read(ws_config_file)
+  def read_ws_config (param)
+    if File.exists? ws_config_file(param)
+      File.read(ws_config_file(param))
     else
       MultiJson.encode({})
     end
