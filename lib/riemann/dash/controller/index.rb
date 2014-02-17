@@ -1,28 +1,50 @@
 class Riemann::Dash::App
-	use Rack::Session::Cookie, :secret => 'changemenot'
-	helpers CasHelpers
-	before do
-	   process_cas_login(request, session)
+	if config[:auth] && config[:auth][:method] == "cas"
+		puts "Using CAS authentication with URI " + config[:auth][:cas][:cas_base_url]
+		use Rack::Session::Cookie, :secret => config[:auth][:cookie_secret] || 'changemenot'
+		helpers CasHelpers
+		before do
+			 set_cas_client(config[:auth][:cas])
+		   process_cas_login(request, session)
+		end
 	end
   get '/' do
-		require_authorization(request, session) unless logged_in?(request, session)
+		if config[:auth] && config[:auth][:method] == "cas"
+		   require_authorization(request, session) unless logged_in?(request, session)
+		end
     erb :index, :layout => false
   end
 
   get '/config', :provides => 'json' do
-		require_authorization(request, session) unless logged_in?(request, session)
     content_type "application/json"
-    config.read_ws_config ({:username => session[:cas_user]})
+		a = nil
+		b = nil
+		if config[:auth] && config[:auth][:method] == "cas"
+		   require_authorization(request, session) unless logged_in?(request, session)
+			 if config[:auth][:config_file_replacee]
+          a = config[:auth][:config_file_replacee]
+          b = session[config[:auth][:config_file_replacer]]
+			 end
+		end
+		config.read_ws_config(a,b)
   end
 
   post '/config' do
-		require_authorization(request, session) unless logged_in?(request, session)
+		a = nil
+		b = nil
+		if config[:auth] && config[:auth][:method] == "cas"
+		   require_authorization(request, session) unless logged_in?(request, session)
+			 if config[:auth][:config_file_replacee]
+          a = config[:auth][:config_file_replacee]
+          b = session[config[:auth][:config_file_replacer]]
+			 end
+		end
     # Read update
     request.body.rewind
-    config.update_ws_config(request.body.read)
+    config.update_ws_config(request.body.read, a, b)
 
     # Return current config
     content_type "application/json"
-    config.read_ws_config
+    config.read_ws_config(a,b)
   end
 end

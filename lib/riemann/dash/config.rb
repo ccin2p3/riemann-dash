@@ -20,14 +20,21 @@ class Riemann::Dash::Config
       :controllers => [File.join(File.dirname(__FILE__), 'controller')],
       :views       => File.join(File.dirname(__FILE__), 'views'),
       :ws_config   => File.expand_path(File.join(File.dirname(__FILE__), '..', '..', '..', 'config', 'config.json')),
-      :public      => File.join(File.dirname(__FILE__), 'public')
+      :public      => File.join(File.dirname(__FILE__), 'public'),
+			:auth        => false,
     })
   end
 
-  def ws_config_file(param)
-    store[:ws_config] + "." + param[:username]
+  def ws_config_file (a = nil, b = nil)
+		if (a && b)
+			filename = store[:ws_config]
+			filename = filename.gsub(a,b)
+			return filename
+		else
+			store[:ws_config]
+		end
   end
-
+	
   # backwards compatible forwarder to store-ivar
   def [](k)
     store[k]
@@ -119,21 +126,27 @@ class Riemann::Dash::Config
   require 'fileutils'
 
 
-  def read_ws_config (param)
-    if File.exists? ws_config_file(param)
-      File.read(ws_config_file(param))
+  def read_ws_config (a=nil,b=nil)
+		filename = ws_config_file(a,b)
+    if File.exists? filename
+			puts "read_ws_config: Reading config file #{filename}"
+      File.read(filename)
     else
+			puts "read_ws_config: Missing config file #{filename}"
       MultiJson.encode({})
     end
   end
 
-  def update_ws_config(update)
+  def update_ws_config(update, a=nil, b=nil)
     update = MultiJson.decode(update)
+		filename = ws_config_file(a,b)
 
     # Read old config
-    if File.exists? ws_config_file
-      old = MultiJson.decode File.read(ws_config_file)
+    if File.exists? filename
+			puts "update_ws_config: Reading config file #{filename}"
+      old = MultiJson.decode File.read(filename)
     else
+			puts "update_ws_config: Missing config file #{filename}"
       old = {}
     end
 
@@ -149,8 +162,9 @@ class Riemann::Dash::Config
     new_config['workspaces'] = update['workspaces'] or old['workspaces']
 
     # Save new config
-    FileUtils.mkdir_p File.dirname(ws_config_file)
-    File.open(ws_config_file, 'w') do |f|
+    FileUtils.mkdir_p File.dirname(filename)
+    File.open(filename, 'w') do |f|
+			puts "update_ws_config: Writing config file #{filename}"
       f.write(MultiJson.encode(new_config, :pretty => true))
     end
   end
